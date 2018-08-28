@@ -1,0 +1,163 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  html_notebook: default
+---
+```{r}
+library(tidyverse)
+library(data.table)
+library(splitstackshape)
+```
+Initial Analysis:
+
+```{r, echo=FALSE}
+HERB_MS <- read.delim("C:/Users/lawre/OneDrive/Captstone Project/Herb_MS-TCMID.v2.01/HERB_MS.txt")
+
+herb.TCMID.v2 <- read.delim("C:/Users/lawre/OneDrive/Captstone Project/herb-TCMID.v2.01/herb-TCMID.v2.01")
+
+Ingredient_MS.TCMID.v2.01 <- read.delim("C:/Users/lawre/OneDrive/Captstone Project/Ingredient_MS-TCMID.v2.01/Ingredient_MS-TCMID.v2.01.txt")
+
+prescription.TCMID.v2.01 <- read.delim2("C:/Users/lawre/OneDrive/Captstone Project/prescription-TCMID.v2.01/prescription-TCMID.v2.01.txt")
+
+ingredient_targets_disease_drug.TCMID.v2.03 <- read.delim("C:/Users/lawre/OneDrive/Captstone Project/ingredient_targets_disease_drug-TCMID.v2.03/ingredient_targets_disease_drug-TCMID.v2.03.txt", header=FALSE)
+
+```
+There are five tables in this database. Some of the tables are usable and others are not. 
+
+Tables that are not usable:
+The prescription table is filled with weird symbols assuming this table is only in Mandarin.
+
+Tables that may potentially useful:
+Ingredient_MS.TCMID.v2.01
+HERB_MS
+
+Tables that were analyzed:
+herb.TCMID.v2
+ingredient_targets_disease_drug.TCMID.v2.03
+
+
+
+
+Investigation of the herb.TCMID.v2 table:
+```{r,echo=FALSE}
+colnames(herb.TCMID.v2)
+#removed the first two columns as they are only for chinese readers
+#furthermore, I did not want these columns impacting the number of
+#rows being removed
+herb.TCMID.modified<-herb.TCMID.v2[3:9]
+herb.TCMID.modified<-herb.TCMID.modified[complete.cases(herb.TCMID.modified),]
+total_number<-nrow(herb.TCMID.v2)
+total_complete<-nrow(herb.TCMID.modified)
+states<-c('Before','After')
+counts<-c(8203,336)
+summary.states<-data.frame(states,counts)
+summary.states$states<-factor(summary.states$states,levels=c('Before','After'))
+```
+Table 1. THis is a table depicting the before and after state after asking R to return only complete rows. There are 336 complete rows after filtering. 
+```{r, echo=FALSE}
+summary.graph<-ggplot(data=summary.states, aes(states,counts))+geom_bar(stat='identity')
+summary.graph
+data.table(summary.states)
+
+```
+
+
+```{r, echo=FALSE}
+head(herb.TCMID.modified,10)
+#Was not sure how to break out the effects or the indications column
+#would be useful  to use to get a count of how many of these
+#medications treat for what symptoms
+#might be useful to break out the merdiaians column as those will give us an initial idea what these mediciations target and how many target chronic problems
+```
+
+
+Graph.The data was group by the Meridians to show which category was being heavily used to treat. 
+
+Table. A table version of the group by meridians.
+```{r, echo=FALSE}
+herb.TCMID.modified_split<-cSplit(herb.TCMID.modified,'Meridians',',', direction='long')
+herb.TCMID.modified_split<-mutate_all(herb.TCMID.modified_split,funs(toupper))
+by.meridians_graph<-herb.TCMID.modified_split %>% group_by(Meridians) %>% summarise(count=n()) %>% ggplot(aes(x=reorder(Meridians,count),count)) +geom_bar(stat='identity')+ theme(axis.text.x=element_text(angle=90,hjust=1))+ xlab('Meridians')
+by.meridians_graph
+by.meridians_table<-herb.TCMID.modified_split %>% group_by(Meridians) %>% summarise(count=n()) %>% arrange(count)
+by.meridians_table
+```
+
+Target-disease table analysis:
+```{r, echo=FALSE}
+ingredient_targets_disease_drug.modified<-ingredient_targets_disease_drug.TCMID.v2.03[complete.cases(ingredient_targets_disease_drug.TCMID.v2.03),]
+total_number<-nrow(ingredient_targets_disease_drug.TCMID.v2.03)
+total_complete<-nrow(ingredient_targets_disease_drug.modified)
+states<-c('Before','After')
+values<-c(total_number,total_complete)
+summary.states<-data.frame(states,values)
+summary.states$states<-factor(summary.states$states,levels=c('Before','After'))
+```
+
+```{r, echo=FALSE}
+summary.graph<-ggplot(data=summary.states, aes(states,values))+geom_bar(stat='identity')
+summary.graph
+data.table(summary.states)
+```
+
+Guess:
+V1=compound name
+V2=??
+V3=uniprot protein sequence and functional information
+v4=information about the gene
+v5=OMIM ID (diseases that this compound has been used to treat)
+v6=Drug database (compound found in these products)
+
+```{r, echo=FALSE}
+colnames(ingredient_targets_disease_drug.modified)
+head(ingredient_targets_disease_drug.modified,10)
+```
+
+
+Graph. indgredient_targets_disease_drug dataset was group by compound. It shows which compounds are specific to a particular disease. Color coded to show how many compounds are specific and not specific.
+
+Table. Shows the compound name and how many diseases it targets.
+
+Table. Shows how many compounds are specific and not specific to a disease(s)
+```{r, echo=FALSE}
+ingredient_targets_disease_drug.modified.split<-cSplit(ingredient_targets_disease_drug.modified,'V5',';', direction='long')
+
+by.disease_graph<-ingredient_targets_disease_drug.modified.split%>% group_by(V1) %>% summarise(count=n()) %>% mutate(color=ifelse(count<10,'specific','notspecific')) %>% ggplot(aes(x=reorder(V1,count),count, fill=color)) +geom_bar(stat='identity')+ xlab('compounds') + theme(axis.text.x=element_blank(),axis.ticks.x=element_blank())
+by.disease_graph
+
+by.disease_table<-ingredient_targets_disease_drug.modified.split %>% group_by(V1) %>% summarise(count=n()) %>% arrange(count)
+by.disease_table
+
+by.disease_table_specific<-ingredient_targets_disease_drug.modified.split %>% group_by(V1) %>% summarise(count=n()) %>% mutate(color=ifelse(count<10,'specific','notspecific')) %>%
+group_by(color) %>% summarise(count=n())
+by.disease_table_specific
+
+
+```
+
+
+Table.Shows how many compounds target each disease
+
+Graph. Display many compounds targeted that disease in ascending order. 
+```{r, echo=FALSE}
+
+by.disease_graph<-ingredient_targets_disease_drug.modified.split%>% group_by(V5) %>% summarise(count=n()) %>% ggplot(aes(x=reorder(V5,count),count)) +geom_bar(stat='identity')+xlab('OMIM_ID')+ theme(axis.text.x=element_text(angle=90,hjust=1))
+by.disease_graph
+
+by.disease_table<-ingredient_targets_disease_drug.modified.split %>% group_by(V5) %>% summarise(count=n()) %>% arrange(count)
+by.disease_table
+
+```
+
+Top 10 disease:
+Familial hypercholanemia
+Periodic fever, menstrual cycle-dependent
+Cranioectodermal dysplasia
+Cyclic neutropenia
+Agammabglobulinemia
+heme oxygenase-1 deficiency
+Nephrogenic diabetes insipidus
+Nasopharyngeal carcinoma
+Vitamin D-dependent rickets type 2B with normal vitamin D receptor
+Adrenocortical carcinoma 

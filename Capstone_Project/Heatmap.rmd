@@ -1,0 +1,35 @@
+---
+title: "Untitled"
+author: "Lawrence Hsu"
+date: "April 23, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+```{r, echo=FALSE}
+library(tidyverse)
+heatmap <- read_csv("C:/Users/lawre/OneDrive/Captstone Project/heatmap.csv")
+x<-heatmap%>%gather(key="uniprot",value="expression",starts_with("uniprot")) 
+heatmap
+```
+
+```{r}
+
+ggplot(data=x)+theme_bw()+geom_tile(color="gray",aes(x=herbal_ingredient, y=uniprot,fill=expression))+theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Ideas for plotly
+
+Herbal Ingredients:
+Formula
+Related herbs (number of herbs)
+PubChem ID
+
+Uniprot:
+Uniprot ID
+Protein Name
+Gene Name
+
+Boxes inbetween:
+Number of Related targets
+Links (maybe?)
